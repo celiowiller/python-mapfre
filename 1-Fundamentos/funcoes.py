@@ -63,3 +63,27 @@ dados('Ecler', 80) # valores default
 dados(idade = 89, nome = 'Saul Goodman')
 # toda e qualquer obedece a ordem posicional dos argumentos dados aos parametros
 
+print()
+print('-------------- função lambda -------------- ')
+
+'''
+LAMBDA: em python, a função lambda é uma função sem nome - anônima!
+
+como uma função lambda não tem nome, precisamos associa-la a um elemento que possa ser identificado/referenciado pelos eu nome -> isso significa que: uma função lambda deve compor uma EXPRESSÃO DE FUNÇÃO; nada mais é que uma variavel que recebe como valor uma função; assim, a função lambda/anonima pode ser eventualmente executada.
+'''
+# vamos definir nossa função lambda
+soma = lambda valor1, valor2 : valor1 + valor2
+
+# agora, precisamos chamar a função a sua execução 
+print('O valor da soma da função lambda é: ', soma(100, 150))
+
+'''
+soma: variavel que recebe como valor a função lambda
+
+lambda: palavra reservada/comando que define a função 
+
+valor1, valor2: são os parametros da função lambda
+
+valor1 + valor2: operação/tarefa que a função lambda irá cumprir
+'''
+
