@@ -62,11 +62,11 @@ def gerar_dashboard_financeiro(df_financeiro, pasta_saida_img):
     # 4.1. fazer uso do seaborn para o grafico
     sns.barplot(
         data=df_financeiro,
-        x = 'Centro de Custo',
-        y = ' valor Movimentado',
+        x = 'Centro_de_Custo',
+        y = 'Valor_Movimentado',
         estimator=sum,
         errorbar = None,
-        pallete = 'Blues_d'
+        palette = 'Blues_d'
     )
 
     # 4.2. configurar o restante da plotagem

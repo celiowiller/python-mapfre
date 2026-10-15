@@ -22,7 +22,7 @@ from sklearn.preprocessing import StandardScaler, OneHotEncoder # os dois recurs
 
 from sklearn.ensemble import RandomForestClassifier # modelo de classificação supervisionada - significa que teremos de oferecer para o modelo algum aprametro para ele aprenda a classificar qualquer coisa que necessitamos - 
 
-from sklearn.metrics import(classsification_report, roc_auc_score, confusion_matrix, roc_curve) # respectivamente, são: gera um resumo textual com as metricas de precisão do modelo, entre outras; calcula a área sob a curva ROC(metricas de capacidade de discriminação do modelo); gera uma matriz de confusão(seu objetivo demonstrar acertos e erros do modelo); extrai os pontos ncessarios para desenhar o grafico da curva de comportamento e capacidade do modelo
+from sklearn.metrics import(classification_report, roc_auc_score, confusion_matrix, roc_curve) # respectivamente, são: gera um resumo textual com as metricas de precisão do modelo, entre outras; calcula a área sob a curva ROC(metricas de capacidade de discriminação do modelo); gera uma matriz de confusão(seu objetivo demonstrar acertos e erros do modelo); extrai os pontos ncessarios para desenhar o grafico da curva de comportamento e capacidade do modelo
 
 # 2. definir uma função para treinar o modelo para observar os emprestimos 
 def treinar_modelo_emprestimos(caminho_loan_csv, pasta_ml_output, caminho_processed):
@@ -72,7 +72,62 @@ def treinar_modelo_emprestimos(caminho_loan_csv, pasta_ml_output, caminho_proces
 
      model_pipeline = Pipeline([
           ('preprocessador', preprocessador),
+          # este é o nosso modelo ML
           ('classifier', RandomForestClassifier(n_estimators=100, random_state = 42, class_weight='balanced'))
      ])
 
      # aqui, acima, fizemos uso pleno do recurso Pipeline(): juntamos o preprocessador com o modelo final - RandomForestClassifier e estabelecemos um ciclo de 100 arvores - para aprendizado e decisão do modelo; posteriormente, indicamos o "peso" do algoritmo para 'balanced' para compensar potenciai/eventuais desequilibrios em aprendizados de dados, como por exemplo, categoricos - Loan_Status - Y e N; não pender tanto par aum lado nem par ao outro.
+
+     # 2.8. agora, vamos estabelecer a divisão dos dados num conjunto de treino - para o aprendizado e num conjunto de testes - que será para observarmos se o modelo, realmente, aprendeu algo
+     X_train, X_test, y_train, y_test = train_test_split(x, y, test_size=0.20, random_state=42, stratify=y)
+
+     model_pipeline.fit(X_train, y_train) # esta é a dunção que, de fato, treina o modelo -considerando os dados selecionados para o treino
+
+     # 2.9. estabelecendo as previsões
+     y_pred = model_pipeline.predict(X_test)
+     y_proba = model_pipeline.predict_proba(X_test)[:, 1] # aqui, estamos gerando as classes de normalização - de 0 a 1 para a base de testes; para extrair a probabilidade (de 0.0 a 1.0) de o emprestimo ser aprovado para um cliente do conjunto de dados teste
+
+     roc_auc = roc_auc_score(y_test, y_proba) # aqui, estamos calculando a pontuação da área so a curva de probabilidade - para observar "o quão bom é o modelo"
+
+     report = classification_report(y_test, y_pred, output_dict=True)
+
+     # 2.10. salvar o modelo e as metricas
+     joblib.dump(model_pipeline, pasta_ml_output / 'modelo_rf_credito.pkl') # aqui, estamos gerando um arquivo .pkl que, se necessario, pode ser disponibilizado para qualquer outra aplicação - a partir do uso de APIs
+
+     with open(pasta_ml_output / 'metrics_modelo.json', 'w') as f:
+          json.dump({'roc_auc': roc_auc, 'report': report}, f, indent=4) # aqui, salvamos o arquivo, com as metricas, no formato .json
+
+     # 2.11. definir e configurar os artefatos de visualização de performace geradas pelo modelo
+     fig, axes = plt.subplots(1, 2, figsize=(12, 5)) # aqui, temos um painel com 1 linha e 2 colunas  - de graficos lado-a-lado
+
+     # desenhar a MAtriz de confusão no primeiro grafico mostrando visualmente os erros e acertos do modelo
+     cm = confusion_matrix(y_test, y_pred)
+     sns.heatmap(cm, annot=True, fmt='d', cmap="Blues", ax=axes[0])
+     axes[0].set_title('Matriz de confusão')
+     axes[0].set_xlabel('Predito')
+     axes[0].set_ylabel('Real')
+
+     # desenhar a Curva Roc no segundo grafico para avaliar a capacidade do modelo em discirminar entre classes ao longo de variados limiares de decisão - ou seja, estamos medindo o quão bom nosso modelo é
+
+     # ROC: significa -> Receiver Operating Characteristic 
+     fpr, tpr, _ = roc_curve(y_test, y_proba)
+     axes[1].plot(fpr, tpr, label=f'ROC Curve(AUC = {roc_auc: .3f})', color='darkorange')
+
+     axes[1].plot([0, 1], [0, 1], color='navy', linestyle='--')
+     axes[1].set_title('Curva ROC - Validação de crédito')
+     axes[1].set_xlabel('Taxa de Falso Positivo')
+     axes[1].set_ylabel('Taxa de Verdadeiro Positivo')
+     axes[1].legend()
+
+     # agora, precisamos ajustar os espaços do grafico; salvar as imagens geradas em alta resolução; me fechar a figura para liberar memoria
+     plt.tight_layout()
+     plt.savefig(pasta_ml_output / 'desempenho_modelo.jpg', dpi=300)
+
+     # 2.11.1. Consolidação 
+     # adicionar ao DataFrame original duas novas colunas de previsão e probabilidade geradas pelo modelo
+     df['Previsao_Aprovacao'] = model_pipeline.predict(x)
+     df['Probabilidade_Aprovacao'] = model_pipeline.predict_proba(x)[:, 1].round(4)
+
+     # retornar o modelo treinado, o dicionario de metricas e a base completa com as previsões gravadas
+     metrics = {'roc_auc': roc_auc, 'report': report}
+     return model_pipeline, metrics, df
